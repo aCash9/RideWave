@@ -17,6 +17,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["redirectSchemeName"] = "ridewave"
+        manifestPlaceholders["redirectHostName"] = "callback"
     }
 
     buildTypes {
@@ -44,6 +46,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
+    implementation(files("libs/spotify-app-remote-release-0.8.0.aar"))
+    implementation(libs.spotify.auth)
+    implementation(libs.gson)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

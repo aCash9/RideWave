@@ -1,15 +1,38 @@
+# Built files and outputs
+*.apk
+*.aar
+*.aab
+*.dex
+*.class
+
+# Exception for local library binaries required by project
+!app/libs/*.aar
+!app/libs/*.jar
+
+# Build directories
+/build/
+**/build/
+.gradle/
+.kotlin/
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# IDE & Android Studio files
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+*.ipr
+*.iws
+/out/
+.vscode/
+
+# Local configuration and secrets
 local.properties
+*.keystore
+*.jks
+*.key
+google-services.json
+
+# OS generated files
+.DS_Store
+Thumbs.db
