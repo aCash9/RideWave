@@ -25,10 +25,10 @@
 
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.RideWave"
-            android:screenOrientation="landscape"
             android:windowSoftInputMode="adjustResize">
 
             <!-- App Launcher -->

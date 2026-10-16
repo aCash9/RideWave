@@ -26,7 +26,19 @@ class SpotifyManager(
 
     private var spotifyAppRemote: SpotifyAppRemote? = null
 
+    private var playerStateSubscription: com.spotify.protocol.client.Subscription<com.spotify.protocol.types.PlayerState>? = null
+
+    fun observePlayback(onPlayingChanged: (com.spotify.protocol.types.PlayerState) -> Unit) {
+        playerStateSubscription?.cancel()
+        playerStateSubscription = spotifyAppRemote?.playerApi?.subscribeToPlayerState()
+        playerStateSubscription?.setEventCallback { state -> onPlayingChanged(state) }
+        playerStateSubscription?.setErrorCallback { error ->
+            Log.w(TAG, "Unable to observe playback state", error)
+        }
+    }
+
     private var connecting = false
+    private var connectionGeneration = 0
 
     private val handler = Handler(
         Looper.getMainLooper()
@@ -125,6 +137,7 @@ class SpotifyManager(
         }
 
         connecting = true
+        val generation = ++connectionGeneration
 
         Log.d(
             TAG,
@@ -149,9 +162,10 @@ class SpotifyManager(
 
         val timeoutRunnable = Runnable {
 
-            if (connecting) {
+            if (connecting && generation == connectionGeneration) {
 
                 connecting = false
+                connectionGeneration++
 
                 Log.e(
                     TAG,
@@ -184,6 +198,11 @@ class SpotifyManager(
                         timeoutRunnable
                     )
 
+                    if (generation != connectionGeneration) {
+                        SpotifyAppRemote.disconnect(appRemote)
+                        return
+                    }
+
                     connecting = false
 
                     spotifyAppRemote = appRemote
@@ -203,6 +222,8 @@ class SpotifyManager(
                     handler.removeCallbacks(
                         timeoutRunnable
                     )
+
+                    if (generation != connectionGeneration) return
 
                     connecting = false
 
@@ -317,6 +338,12 @@ class SpotifyManager(
     }
 
     fun disconnect() {
+
+        connectionGeneration++
+        handler.removeCallbacksAndMessages(null)
+
+        playerStateSubscription?.cancel()
+        playerStateSubscription = null
 
         Log.d(TAG, "Disconnecting Spotify")
 

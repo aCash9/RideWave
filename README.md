@@ -1,6 +1,6 @@
 # RideWave
 
-RideWave is an Android app for simple, low-distraction Spotify playback control while riding. The current UI is a landscape, fullscreen Compose screen with a large clock and gesture-driven playback actions.
+RideWave is an Android app for simple Spotify playback control. All pages use a pure black background. The introduction explains gestures once, the connection page handles initial Spotify setup, and returning authorized users open ride mode directly while Spotify reconnects in the background. Ride mode has a bold clock in the header, a top-left close icon, and gesture feedback that clears after two seconds. The entire ride screen accepts gestures except the close control.
 
 The project is actively evolving. The working feature set is intentionally small: connect to Spotify, then use a tap or horizontal swipe to control the current playback session.
 
@@ -11,10 +11,14 @@ The project is actively evolving. The working feature set is intentionally small
 - Tap to toggle play/pause.
 - Swipe left to skip to the next track.
 - Swipe right to skip to the previous track.
-- Fullscreen landscape presentation with the screen kept awake.
+- Portrait and landscape support without recreating the activity or reconnecting Spotify on rotation.
+- Screen kept awake only during ride mode; the clock updates once per minute.
+- Playback state synchronized from Spotify for the tap-to-toggle gesture.
 - Connection, authorization, timeout, and missing-Spotify-app feedback.
 
-The project does not yet provide playlist browsing, track metadata, configurable gestures, background playback, or a dedicated settings screen.
+Ride mode displays the live song title, artist, and playback status at the bottom center. A large, full-opacity white clock sits in the header; centered playback icons provide two-second gesture feedback.
+
+The project does not yet provide playlist browsing, configurable gestures, background playback, or a dedicated settings screen.
 
 ## Technology
 
@@ -57,7 +61,7 @@ Android configuration:
 
 ## Requirements
 
-- Android Studio with a compatible Android SDK and JDK 11.
+- Android Studio with a compatible Android SDK. The Gradle daemon toolchain is configured for JDK 25; Java source/target compatibility is 11.
 - An Android device or emulator running API 24 or later.
 - The Spotify Android app installed on the test device.
 - A Spotify Developer application configured for this package and signing key.
@@ -128,19 +132,21 @@ Spotify App Remote connection
 Tap / swipe playback controls
 ```
 
-Authorization state is remembered in app preferences so the next activity start can attempt an App Remote connection without asking the user to authorize again. A failed automatic connection falls back to the explicit Connect Spotify action.
+Onboarding completion and authorization state are remembered in app preferences. After setup, subsequent launches open ride mode and reconnect in the background. Connection failures open the connection page with a retry action. Successful connection opens ride mode automatically. The close icon exits the app; Android Back returns to the preceding page.
+
+Orientation and screen-size changes are handled by the activity so rotation preserves the Spotify connection and current page. Backgrounding the app disconnects App Remote; returning to ride mode reconnects in the background.
 
 ## Known limitations
 
-- Playback state is tracked locally by `GestureHandler`; it is not synchronized from Spotify's player state.
+- Playback controls depend on an active Spotify App Remote connection.
 - The local Spotify App Remote AAR is required to build the app.
-- The current UI is optimized for landscape use and hides system bars.
+- The current UI hides system bars and adapts its layout to the available window size.
 - There is only one application module and no production release/signing configuration.
 - The starter unit and instrumented tests are still minimal; new behavior should be covered as it stabilizes.
 
 ## Contribution notes
 
-Keep Spotify-specific code in the `spotify` package, gesture interpretation in `gestures`, and UI concerns in Compose/activity code. Prefer small, focused changes, preserve the existing landscape/fullscreen behavior unless the feature requires otherwise, and update this README when setup or user-visible behavior changes. See [AGENTS.md](AGENTS.md) for repository working agreements.
+Keep Spotify-specific code in the `spotify` package, gesture interpretation in `gestures`, and UI concerns in Compose/activity code. Prefer small, focused changes, verify both orientations, and update this README when setup or user-visible behavior changes. See [AGENTS.md](AGENTS.md) for repository working agreements.
 
 ## License
 

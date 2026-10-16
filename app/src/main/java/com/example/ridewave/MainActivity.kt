@@ -3,61 +3,24 @@ package com.example.ridewave
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
-import android.util.Log
-import com.example.ridewave.R
-
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-
 import androidx.activity.result.contract.ActivityResultContracts
-
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.size
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.tween
-import androidx.compose.ui.res.painterResource
-import androidx.compose.foundation.Image
-
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-
 import com.example.ridewave.gestures.GestureDetector
 import com.example.ridewave.gestures.GestureHandler
 import com.example.ridewave.gestures.GestureType
-
 import com.example.ridewave.spotify.SpotifyManager
 import com.example.ridewave.ui.theme.RideWaveTheme
-
 import com.spotify.sdk.android.auth.AuthorizationClient
 import com.spotify.sdk.android.auth.AuthorizationResponse
 
@@ -73,7 +36,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var gestureHandler: GestureHandler
 
-    private var isAuthorized by mutableStateOf(false)
+    private var page by mutableStateOf(com.example.ridewave.ui.RidePage.LANDING)
 
     private var isConnected by mutableStateOf(false)
 
@@ -85,7 +48,13 @@ class MainActivity : ComponentActivity() {
 
     private var currentTime by mutableStateOf("")
 
-    private var gestureFeedback by mutableStateOf<GestureType?>(null)
+    private var feedback by mutableStateOf<String?>(null)
+    private var feedbackSequence by mutableStateOf(0)
+    private var trackTitle by mutableStateOf<String?>(null)
+    private var trackArtist by mutableStateOf("")
+    private var playing by mutableStateOf(false)
+
+
 
     private val spotifyPreferences by lazy {
         getSharedPreferences("spotify_preferences", Context.MODE_PRIVATE)
@@ -120,7 +89,6 @@ class MainActivity : ComponentActivity() {
                         "Spotify authorization SUCCESS"
                     )
 
-                    isAuthorized = true
                     isAuthorizing = false
 
                     spotifyPreferences.edit()
@@ -142,7 +110,6 @@ class MainActivity : ComponentActivity() {
                         "Spotify authorization ERROR: ${response.error}"
                     )
 
-                    isAuthorized = false
                     isConnecting = false
                     isAuthorizing = false
 
@@ -157,7 +124,6 @@ class MainActivity : ComponentActivity() {
                         "Spotify authorization cancelled"
                     )
 
-                    isAuthorized = false
                     isConnecting = false
                     isAuthorizing = false
 
@@ -172,7 +138,6 @@ class MainActivity : ComponentActivity() {
                         "Spotify authorization returned: ${response.type}"
                     )
 
-                    isAuthorized = false
                     isConnecting = false
                     isAuthorizing = false
 
@@ -188,7 +153,10 @@ class MainActivity : ComponentActivity() {
 
         super.onCreate(savedInstanceState)
 
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        val authorized = spotifyPreferences.getBoolean("spotify_authorized", false)
+        page = if (spotifyPreferences.getBoolean("onboarding_seen", authorized)) {
+            if (authorized) com.example.ridewave.ui.RidePage.RIDE else com.example.ridewave.ui.RidePage.CONNECT
+        } else com.example.ridewave.ui.RidePage.LANDING
 
         enableEdgeToEdge()
 
@@ -198,120 +166,72 @@ class MainActivity : ComponentActivity() {
         gestureDetector = GestureDetector()
 
         gestureHandler = GestureHandler(spotifyManager) { gesture ->
-            gestureFeedback = gesture
+            feedback = when (gesture) {
+                GestureType.SWIPE_LEFT -> "Next track"
+                GestureType.SWIPE_RIGHT -> "Previous track"
+                GestureType.SINGLE_TAP -> if (gestureHandler.isPlaying()) "Play" else "Pause"
+            }
+            feedbackSequence++
         }
 
         setContent {
-
             RideWaveTheme {
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFF000000))
-                ) {
-                    LaunchedEffect(Unit) {
+                LaunchedEffect(feedbackSequence) {
+                    if (feedback != null) {
+                        kotlinx.coroutines.delay(2000)
+                        feedback = null
+                    }
+                }
+                LaunchedEffect(page) {
+                    if (page == com.example.ridewave.ui.RidePage.RIDE) {
                         while (true) {
-                            currentTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                            currentTime = android.text.format.DateFormat.getTimeFormat(this@MainActivity)
                                 .format(java.util.Date())
-                            kotlinx.coroutines.delay(1000)
-                        }
-                    }
-
-                    LaunchedEffect(gestureFeedback) {
-                        if (gestureFeedback != null) {
-                            kotlinx.coroutines.delay(1500)
-                            gestureFeedback = null
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .padding(24.dp)
-                                .align(Alignment.TopStart)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clickable {
-                                        finish()
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "✕",
-                                    color = Color.White.copy(alpha = 0.4f),
-                                    fontSize = 24.sp
-                                )
-                            }
-                        }
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 24.dp, vertical = 24.dp),
-
-                            verticalArrangement = Arrangement.Top,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Spacer(modifier = Modifier.height(24.dp))
-
-                            Text(
-                                text = currentTime,
-                                color = Color.White.copy(alpha = 0.5f),
-                                fontSize = 80.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(48.dp))
-
-                            when {
-                                isConnected -> {
-                                    SpotifyControls()
-                                }
-                                else -> {
-                                    SpotifyLoginButton()
-                                }
-                            }
-
-                            errorMessage?.let { error ->
-                                Spacer(modifier = Modifier.height(24.dp))
-                                Text(
-                                    text = error,
-                                    color = Color.White.copy(alpha = 0.4f)
-                                )
-                            }
-                        }
-                    }
-
-                    AnimatedVisibility(
-                        visible = gestureFeedback != null,
-                        enter = fadeIn(animationSpec = tween(200)),
-                        exit = fadeOut(animationSpec = tween(200))
-                    ) {
-                        gestureFeedback?.let { gesture ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Image(
-                                    painter = painterResource(
-                                        id = when (gesture) {
-                                            GestureType.SWIPE_LEFT -> R.drawable.ic_next
-                                            GestureType.SWIPE_RIGHT -> R.drawable.ic_prev
-                                            GestureType.SINGLE_TAP -> R.drawable.ic_play
-                                        }
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp)
-                                )
-                            }
+                            kotlinx.coroutines.delay(60_000L - System.currentTimeMillis() % 60_000L)
                         }
                     }
                 }
+                LaunchedEffect(page) {
+                    if (page == com.example.ridewave.ui.RidePage.RIDE) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                }
+                androidx.activity.compose.BackHandler(page != com.example.ridewave.ui.RidePage.LANDING) {
+                    page = if (page == com.example.ridewave.ui.RidePage.RIDE)
+                        com.example.ridewave.ui.RidePage.CONNECT else com.example.ridewave.ui.RidePage.LANDING
+                }
+                com.example.ridewave.ui.RideWaveScreen(
+                    page = page,
+                    time = currentTime,
+                    connected = isConnected,
+                    connecting = isConnecting,
+                    error = errorMessage,
+                    onContinue = {
+                        spotifyPreferences.edit().putBoolean("onboarding_seen", true).apply()
+                        page = com.example.ridewave.ui.RidePage.CONNECT
+                        if (spotifyPreferences.getBoolean("spotify_authorized", false) && !isConnected && !isConnecting) {
+                            connectSpotifyAutomatically()
+                        }
+                    },
+                    onConnect = ::authorizeSpotify,
+                    onRide = { if (isConnected) page = com.example.ridewave.ui.RidePage.RIDE },
+                    onGesture = {
+                        if (isConnected) gestureHandler.handleGesture(it)
+                        else {
+                            feedback = if (isConnecting) "Connecting to Spotify…" else "Spotify is disconnected"
+                            feedbackSequence++
+                        }
+                    },
+                    gestureDetector = gestureDetector,
+                    onClose = { finish() },
+                    feedback = feedback,
+                    feedbackSequence = feedbackSequence,
+                    trackTitle = trackTitle,
+                    trackArtist = trackArtist,
+                    playing = playing
+                )
             }
         }
     }
@@ -340,55 +260,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @Composable
-    private fun SpotifyLoginButton() {
-
-        Button(
-            enabled = !isConnecting,
-            onClick = {
-
-                errorMessage = null
-
-                if (!spotifyManager.isSpotifyInstalled()) {
-
-                    errorMessage =
-                        "Spotify is not installed."
-
-                    return@Button
-                }
-
-                isConnecting = true
-                isAuthorizing = true
-
-                Log.d(
-                    TAG,
-                    "Launching Spotify authorization"
-                )
-
-                val authIntent =
-                    spotifyManager.getAuthIntent(
-                        this@MainActivity
-                    )
-
-                authLauncher.launch(
-                    authIntent
-                )
-            },
-            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                containerColor = Color.White.copy(alpha = 0.1f),
-                contentColor = Color.White.copy(alpha = 0.6f)
-            )
-        ) {
-
-            Text(
-                text =
-                    if (isConnecting) {
-                        "Connecting..."
-                    } else {
-                        "Connect Spotify"
-                    }
-            )
+    private fun authorizeSpotify() {
+        if (isConnecting) return
+        errorMessage = null
+        if (!spotifyManager.isSpotifyInstalled()) {
+            errorMessage = "Install Spotify and sign in, then try again."
+            return
         }
+        isConnecting = true
+        isAuthorizing = true
+        authLauncher.launch(spotifyManager.getAuthIntent(this))
     }
 
     override fun onStart() {
@@ -397,7 +278,7 @@ class MainActivity : ComponentActivity() {
         val previouslyAuthorized =
             spotifyPreferences.getBoolean("spotify_authorized", false)
 
-        if (previouslyAuthorized && !isConnected && !isConnecting) {
+        if (page != com.example.ridewave.ui.RidePage.LANDING && previouslyAuthorized && !isConnected && !isConnecting) {
             connectSpotifyAutomatically()
         }
     }
@@ -406,6 +287,7 @@ class MainActivity : ComponentActivity() {
 
         if (!spotifyManager.isSpotifyInstalled()) {
             errorMessage = "Spotify is not installed"
+            page = com.example.ridewave.ui.RidePage.CONNECT
             return
         }
 
@@ -422,6 +304,9 @@ class MainActivity : ComponentActivity() {
                     isConnected = true
                     isConnecting = false
                     errorMessage = null
+
+                    observePlayback()
+                    page = com.example.ridewave.ui.RidePage.RIDE
 
                     Log.d(TAG, "Spotify auto-connected successfully")
                 }
@@ -441,6 +326,7 @@ class MainActivity : ComponentActivity() {
 
                     errorMessage =
                         "Automatic connection failed. Tap Connect Spotify."
+                    page = com.example.ridewave.ui.RidePage.CONNECT
                 }
             }
         )
@@ -467,6 +353,9 @@ class MainActivity : ComponentActivity() {
                     isConnected = true
                     isConnecting = false
                     errorMessage = null
+
+                    observePlayback()
+                    page = com.example.ridewave.ui.RidePage.RIDE
                 }
             },
 
@@ -491,16 +380,14 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    @Composable
-    private fun SpotifyControls() {
-
-        Box(
-            modifier = gestureDetector.createGestureModifier(
-                onSwipeLeft = { gestureHandler.handleGesture(GestureType.SWIPE_LEFT) },
-                onSwipeRight = { gestureHandler.handleGesture(GestureType.SWIPE_RIGHT) },
-                onTap = { gestureHandler.handleGesture(GestureType.SINGLE_TAP) }
-            ).fillMaxSize()
-        ) {
+    private fun observePlayback() {
+        spotifyManager.observePlayback { state ->
+            runOnUiThread {
+                playing = !state.isPaused
+                gestureHandler.setPlayingState(playing)
+                trackTitle = state.track?.name
+                trackArtist = state.track?.artist?.name.orEmpty()
+            }
         }
     }
 
@@ -518,6 +405,8 @@ class MainActivity : ComponentActivity() {
         if (!isAuthorizing) {
             spotifyManager.disconnect()
             isConnected = false
+            isConnecting = false
+            feedback = null
         }
     }
 

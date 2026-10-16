@@ -46,7 +46,7 @@ When a check cannot run, report that clearly and include the reason. Do not hide
 
 ## UI and interaction expectations
 
-- Preserve the current landscape, fullscreen, screen-awake behavior unless the task explicitly changes it.
+- Support portrait and landscape layouts; preserve fullscreen and screen-awake behavior unless the task explicitly changes it.
 - Ensure gesture changes do not interfere with visible controls or accessibility semantics.
 - Provide useful user-facing feedback for authorization, connection, timeout, and missing-app failures.
 - Keep playback actions safe when Spotify is disconnected; do not assume the App Remote object is always available.
