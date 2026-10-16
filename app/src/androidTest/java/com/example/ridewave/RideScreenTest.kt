@@ -33,6 +33,16 @@ class RideScreenTest {
         }
     }
 
+    @Test fun notificationsDoNotTriggerPlayback() {
+        var gestures = 0
+        compose.setContent {
+            RideWaveScreen(RidePage.RIDE, "09:41", true, false, null,
+                {}, {}, {}, { gestures++ }, GestureDetector(), {})
+        }
+        compose.onNodeWithContentDescription("Notifications").performTouchInput { click(center) }
+        compose.runOnIdle { assertEquals(0, gestures) }
+    }
+
     @Test fun closeDoesNotTriggerPlayback() {
         var closes = 0
         var gestures = 0

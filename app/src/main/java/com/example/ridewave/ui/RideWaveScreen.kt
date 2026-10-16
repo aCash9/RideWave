@@ -103,7 +103,8 @@ fun RideWaveScreen(
                 Column(
                     Modifier.align(Alignment.BottomCenter)
                         .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical))
-                        .padding(horizontal = 28.dp, vertical = if (landscape) 12.dp else 36.dp)
+                        .padding(start = 88.dp, end = 88.dp, top = if (landscape) 12.dp else 36.dp,
+                            bottom = if (landscape) 12.dp else 36.dp)
                         .widthIn(max = 600.dp).fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -161,6 +162,12 @@ fun RideWaveScreen(
                 }
             }
         }
+        if (page == RidePage.RIDE) {
+            ContactsButton(Modifier.align(Alignment.BottomEnd)
+                .windowInsetsPadding(WindowInsets.safeDrawing).padding(8.dp))
+        }
+        NotificationButton(Modifier.align(Alignment.TopEnd)
+            .windowInsetsPadding(WindowInsets.safeDrawing).padding(8.dp))
         IconButton(onClick = onClose,
             modifier = Modifier.align(Alignment.TopStart)
                 .windowInsetsPadding(WindowInsets.safeDrawing).padding(8.dp).size(72.dp)

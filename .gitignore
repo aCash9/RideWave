@@ -28,6 +28,7 @@
 
 # Local configuration and secrets
 local.properties
+app/src/main/java/com/example/ridewave/spotify/SpotifyConfig.kt
 *.keystore
 *.jks
 *.key

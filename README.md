@@ -1,6 +1,6 @@
 # RideWave
 
-RideWave is an Android app for simple Spotify playback control. All pages use a pure black background. The introduction explains gestures once, the connection page handles initial Spotify setup, and returning authorized users open ride mode directly while Spotify reconnects in the background. Ride mode has a bold clock in the header, a top-left close icon, and gesture feedback that clears after two seconds. The entire ride screen accepts gestures except the close control.
+RideWave is an Android app for simple Spotify playback control. All pages use a pure black background. The introduction explains gestures once, the connection page handles initial Spotify setup, and returning authorized users open ride mode directly while Spotify reconnects in the background. Ride mode has a bold clock in the header, a top-left close icon, and gesture feedback that clears after two seconds. The entire ride screen accepts gestures except the close, notification, and contacts controls.
 
 The project is actively evolving. The working feature set is intentionally small: connect to Spotify, then use a tap or horizontal swipe to control the current playback session.
 
@@ -15,10 +15,36 @@ The project is actively evolving. The working feature set is intentionally small
 - Screen kept awake only during ride mode; the clock updates once per minute.
 - Playback state synchronized from Spotify for the tap-to-toggle gesture.
 - Connection, authorization, timeout, and missing-Spotify-app feedback.
+- Top-right notification button with a scrollable popup of current device notifications.
+- Fullscreen ride contacts with up to four large animated bubbles, direct calling, and a 10-second inactivity timeout.
 
 Ride mode displays the live song title, artist, and playback status at the bottom center. A large, full-opacity white clock sits in the header; centered playback icons provide two-second gesture feedback.
 
 The project does not yet provide playlist browsing, configurable gestures, background playback, or a dedicated settings screen.
+
+## Device notifications
+
+Tap the bell in the top-right corner of any screen. On first use, choose **Enable notification access**, then allow RideWave in Android Settings and return to the app. This uses Android's notification listener service; Spotify setup and callback configuration are unchanged.
+
+In portrait, the popup fills half the screen height and uses the available width. In landscape, it becomes a full-height panel on the right half of the screen. It shows active notifications with app icons, newest first, and updates as they arrive or are removed. Each preview is limited to four lines (one title line and up to three body lines), with an ellipsis for longer content. App names remain available to screen readers through the icons. It closes after five seconds without interaction; touching or scrolling restarts the timer, and Android accessibility timeout preferences are respected. Close, Back, and tapping outside also dismiss it. Popup interactions do not trigger playback gestures.
+
+Notifications are held only in memory, with no history, storage, or upload. This is a read-only preview: opening or dismissing a notification in its source app is not supported. Android may redact sensitive content or restrict work-profile/device notifications. Access can be revoked in Android Settings. If the listener is disconnected, the popup offers settings to restore access.
+
+Manual verification: grant and revoke access; post, update, and remove notifications from another app; check empty and disconnected states; scroll a long list in both orientations; verify inactivity dismissal and return from Settings. Confirm Spotify reconnects after leaving Settings and that popup interactions do not change playback.
+
+## Ride contacts
+
+Tap the contacts button at the bottom-right of ride mode to open a fullscreen overlay with a subtle heading. Large photo/name bubbles use a two-column layout in portrait and a single row in landscape. A single **+** bubble starts in the center; the add bubble remains until four contacts have been saved. The overlay uses true black surfaces, restrained white and gray styling, and brief fades to match ride mode and minimize OLED power use. Tap **Edit** to remove a saved contact. Back, Close, or the surrounding background dismisses the overlay without triggering playback.
+
+The overlay closes after **10 seconds of inactivity**. Touch and accessibility button actions restart the timer. Holding a touch, loading/saving, the contact picker, permission prompts, app settings, and backgrounding pause it; returning starts a fresh interval. Android accessibility timeout preferences can extend the interval. Animation speed settings do not shorten the actual timeout.
+
+Tapping a contact **places a call directly** using the selected number. Android asks for **Phone (`CALL_PHONE`) permission** the first time; granting it continues that selected call. If permission is denied, RideWave offers another request or app settings. Returning from settings requires a fresh contact tap. The phone app may still require a SIM choice or device-specific confirmation. Missing calling apps and denied/revoked permissions show feedback.
+
+Choose numbers with Android's contact picker; no full-address-book permission is required. Only the selected name, phone number, and optional thumbnail are copied to private app storage excluded from Android backup. Photos appear when the provider allows access; otherwise the name appears inside the circle. Details persist between launches and are snapshots: remove and re-add a contact to refresh a changed number or photo. Duplicate numbers are rejected. Picker and storage failures show feedback.
+
+This uses Android's [phone-number picker and direct-call intents](https://developer.android.com/guide/components/intents-common). The manifest declares `CALL_PHONE` and keeps telephony optional so devices without calling hardware can still install RideWave. Spotify setup and callback configuration are unchanged; leaving for the picker or calling app uses the existing disconnect/reconnect lifecycle.
+
+Manual verification: add contacts with and without photos, select among multiple numbers, cancel the picker, try a duplicate, fill all four slots, remove/re-add a contact, and restart the app. Check large targets in portrait/landscape and large text, animation settings, 10-second dismissal/reset, and extended accessibility timeouts. With an agreed test number, verify direct calls after permission grant, denial/retry/settings/revocation, and dual-SIM behavior. Confirm Back dismisses the overlay first, contacts never trigger playback gestures, and Spotify reconnects on return. Automated tests exercise callbacks and call intent construction without placing real calls.
 
 ## Technology
 
@@ -79,14 +105,14 @@ The Spotify App Remote integration is device-oriented. Testing on a physical dev
    ```
 
 4. Configure the redirect URI `ridewave://callback`.
-5. Set the client ID in `app/src/main/java/com/example/ridewave/spotify/SpotifyConfig.kt` for local development.
+5. Copy `app/src/main/java/com/example/ridewave/spotify/SpotifyConfig.kt.example` to `app/src/main/java/com/example/ridewave/spotify/SpotifyConfig.kt` and set the client ID for local development. The copied file is ignored by Git.
 6. If the Spotify application is in Development Mode, add the Spotify account used for testing to the application's allowed users.
 
 The redirect URI must match in all three places: Spotify Developer Dashboard, `SpotifyConfig.kt`, and the manifest intent filter. The package name and SHA-1 must match the installed build's signing identity.
 
 ### Credential safety
 
-Do not commit a real client ID or other credentials to a public repository. Review `SpotifyConfig.kt` before publishing or sharing the repository, and prefer a local, ignored configuration mechanism for future work. A Spotify client ID is not a secret by itself, but committing application-specific credentials still makes environment management and rotation harder.
+Do not commit a real client ID or other credentials to a public repository. `SpotifyConfig.kt` is ignored by Git; commit only the `SpotifyConfig.kt.example` template. A Spotify client ID is not a secret by itself, but keeping it local makes environment management and rotation easier.
 
 ## Build and test
 
