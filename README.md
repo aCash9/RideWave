@@ -1,424 +1,147 @@
-# RideWave 🏍️🎵
+# RideWave
 
-RideWave is an Android application designed to provide simple and accessible media controls for motorcycle riders.
+RideWave is an Android app for simple, low-distraction Spotify playback control while riding. The current UI is a landscape, fullscreen Compose screen with a large clock and gesture-driven playback actions.
 
-The goal of RideWave is to minimize the interaction required to control music while riding. The current version establishes the foundation of the application by integrating Spotify authentication and playback controls.
+The project is actively evolving. The working feature set is intentionally small: connect to Spotify, then use a tap or horizontal swipe to control the current playback session.
 
-## Current Status
+## Features
 
-🚧 **RideWave is currently under development.**
+- Spotify authorization using the Android Authentication SDK.
+- Spotify App Remote connection and automatic reconnection after a previous authorization.
+- Tap to toggle play/pause.
+- Swipe left to skip to the next track.
+- Swipe right to skip to the previous track.
+- Fullscreen landscape presentation with the screen kept awake.
+- Connection, authorization, timeout, and missing-Spotify-app feedback.
 
-The current implementation supports:
+The project does not yet provide playlist browsing, track metadata, configurable gestures, background playback, or a dedicated settings screen.
 
-- Spotify account authorization
-- Spotify App Remote connection
-- Play/resume playback
-- Pause playback
-- Skip to the next track
-- Skip to the previous track
-- Spotify installation detection
-- Connection and authorization error handling
-- Jetpack Compose-based UI
+## Technology
 
-Gesture-based controls, playlist browsing, track information, and the full rider interface will be added in future iterations.
+- Kotlin 2.2.10
+- Android Gradle Plugin 9.4.1
+- Jetpack Compose and Material 3
+- Gradle Kotlin DSL with a version catalog
+- Spotify Android Authentication SDK 2.1.0
+- Spotify App Remote SDK 0.8.0 (local AAR)
+- Java 11 source and target compatibility
 
----
+Android configuration:
 
-## Tech Stack
-
-- **Kotlin**
-- **Jetpack Compose**
-- **Material 3**
-- **Spotify Android Authentication SDK**
-- **Spotify App Remote SDK 0.8.0**
-- **Gradle Kotlin DSL**
-- **Version Catalogs**
-
-### Android Configuration
-
-- Minimum SDK: **24**
-- Target SDK: **37**
 - Application ID: `com.example.ridewave`
+- Minimum SDK: 24
+- Compile/target SDK: 37
+- Module: `app`
 
----
-
-## Spotify Integration
-
-RideWave currently uses two components of Spotify's Android integration.
-
-### Spotify Authentication SDK
-
-The Authentication SDK is used to explicitly request permission from the user to allow RideWave to control Spotify.
-
-The application currently requests:
+## Repository layout
 
 ```text
-app-remote-control
-```
-
-### Spotify App Remote SDK
-
-After authorization succeeds, RideWave establishes an App Remote connection with the Spotify Android application.
-
-App Remote is then used for playback operations such as:
-
-```text
-Play / Resume
-Pause
-Previous Track
-Next Track
-```
-
-The Spotify application must be installed on the Android device.
-
----
-
-## Authentication Flow
-
-RideWave currently uses an explicit authorization flow before establishing the Spotify App Remote connection.
-
-```text
-RideWave
-   │
-   │ User selects "Connect Spotify"
-   ▼
-Spotify Authentication SDK
-   │
-   │ Request: app-remote-control
-   ▼
-Spotify Authorization
-   │
-   │ User approves RideWave
-   ▼
-RideWave
-   │
-   │ Authorization successful
-   ▼
-Spotify App Remote
-   │
-   │ Establish connection
-   ▼
-Spotify Connected
-   │
-   ├── Play
-   ├── Pause
-   ├── Previous
-   └── Next
-```
-
-Explicit authorization is intentionally performed before connecting App Remote.
-
----
-
-## Project Structure
-
-```text
-RideWave/
-│
+.
 ├── app/
-│   ├── libs/
-│   │   └── spotify-app-remote-release-0.8.0.aar
-│   │
+│   ├── libs/                         # Local Spotify App Remote AAR
 │   ├── src/main/
 │   │   ├── java/com/example/ridewave/
-│   │   │   ├── MainActivity.kt
-│   │   │   │
-│   │   │   ├── spotify/
-│   │   │   │   ├── SpotifyConfig.kt
-│   │   │   │   └── SpotifyManager.kt
-│   │   │   │
-│   │   │   └── ui/
-│   │   │       └── theme/
-│   │   │
-│   │   └── AndroidManifest.xml
-│   │
-│   └── build.gradle.kts
-│
-├── gradle/
-│   └── libs.versions.toml
-│
-├── settings.gradle.kts
+│   │   │   ├── MainActivity.kt       # UI, lifecycle, auth flow
+│   │   │   ├── gestures/              # Gesture detection and action mapping
+│   │   │   ├── spotify/               # Spotify configuration and integration
+│   │   │   └── ui/theme/              # Compose theme definitions
+│   │   └── AndroidManifest.xml        # Permissions, launcher, callback URI
+│   ├── src/test/                      # Local JVM tests
+│   └── src/androidTest/               # Instrumented Android tests
+├── gradle/libs.versions.toml         # Dependency and plugin versions
+├── build.gradle.kts                   # Root Gradle configuration
+├── settings.gradle.kts                # Module and repository configuration
+├── AGENTS.md                          # Repository contribution guidance
 └── README.md
 ```
 
----
+## Requirements
 
-## SpotifyManager
+- Android Studio with a compatible Android SDK and JDK 11.
+- An Android device or emulator running API 24 or later.
+- The Spotify Android app installed on the test device.
+- A Spotify Developer application configured for this package and signing key.
 
-`SpotifyManager` acts as the central integration layer between RideWave and Spotify.
+The Spotify App Remote integration is device-oriented. Testing on a physical device with Spotify installed is recommended.
 
-It is currently responsible for:
+## Spotify setup
 
-```text
-Spotify installation detection
-        │
-        ▼
-Spotify authorization request
-        │
-        ▼
-Spotify App Remote connection
-        │
-        ▼
-Playback commands
-```
+1. Create an application in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+2. Add the Android package `com.example.ridewave`.
+3. Register the debug signing certificate SHA-1. Generate it with:
 
-Supported operations include:
+   ```bash
+   ./gradlew signingReport
+   ```
 
-```kotlin
-spotifyManager.play()
+4. Configure the redirect URI `ridewave://callback`.
+5. Set the client ID in `app/src/main/java/com/example/ridewave/spotify/SpotifyConfig.kt` for local development.
+6. If the Spotify application is in Development Mode, add the Spotify account used for testing to the application's allowed users.
 
-spotifyManager.pause()
+The redirect URI must match in all three places: Spotify Developer Dashboard, `SpotifyConfig.kt`, and the manifest intent filter. The package name and SHA-1 must match the installed build's signing identity.
 
-spotifyManager.next()
+### Credential safety
 
-spotifyManager.previous()
+Do not commit a real client ID or other credentials to a public repository. Review `SpotifyConfig.kt` before publishing or sharing the repository, and prefer a local, ignored configuration mechanism for future work. A Spotify client ID is not a secret by itself, but committing application-specific credentials still makes environment management and rotation harder.
 
-spotifyManager.disconnect()
-```
+## Build and test
 
-Keeping Spotify-specific functionality inside `SpotifyManager` prevents the UI layer from depending directly on Spotify implementation details.
-
----
-
-## Spotify Developer Setup
-
-To run RideWave locally, create an application in the Spotify Developer Dashboard.
-
-Configure the Android application using your own Spotify developer credentials.
-
-### Redirect URI
-
-RideWave currently uses:
-
-```text
-ridewave://callback
-```
-
-The same redirect URI must be configured in the Spotify Developer Dashboard.
-
-### Android Package
-
-```text
-com.example.ridewave
-```
-
-### SHA-1 Fingerprint
-
-Retrieve the signing fingerprint for your local build using:
+From the repository root:
 
 ```bash
-./gradlew signingReport
-```
-
-Find the `debug` variant:
-
-```text
-Variant: debug
-SHA1: XX:XX:XX:XX:...
-```
-
-Register the corresponding Android package and SHA-1 fingerprint in the Spotify Developer Dashboard.
-
----
-
-## Development Mode
-
-If the Spotify application is running in **Development Mode**, the Spotify account used for testing must be added under:
-
-```text
-Spotify Developer Dashboard
-        ↓
-RideWave
-        ↓
-User Management
-```
-
-Otherwise, the account may not be authorized to use the developer application.
-
----
-
-## Client ID Configuration
-
-Add your Spotify Client ID to:
-
-```text
-SpotifyConfig.kt
-```
-
-Example:
-
-```kotlin
-object SpotifyConfig {
-
-    const val CLIENT_ID =
-        "YOUR_SPOTIFY_CLIENT_ID"
-
-    const val REDIRECT_URI =
-        "ridewave://callback"
-
-    val SCOPES = arrayOf(
-        "app-remote-control"
-    )
-}
-```
-
-Do **not** commit sensitive credentials such as a Spotify Client Secret to the repository.
-
----
-
-## Running RideWave
-
-### 1. Clone the repository
-
-```bash
-git clone <repository-url>
-
-cd RideWave
-```
-
-### 2. Verify Spotify configuration
-
-Make sure your Spotify Developer application contains:
-
-```text
-Redirect URI:
-ridewave://callback
-
-Android Package:
-com.example.ridewave
-
-SHA-1:
-<your debug signing fingerprint>
-```
-
-### 3. Add your Client ID
-
-Configure `SpotifyConfig.kt` with your Spotify Client ID.
-
-### 4. Install Spotify
-
-Install the official Spotify Android application on the test device and sign in.
-
-### 5. Build RideWave
-
-```bash
+# Build the debug APK
 ./gradlew assembleDebug
+
+# Run JVM unit tests
+./gradlew test
+
+# Run lint checks, when configured for the local Android SDK
+./gradlew lint
+
+# Install the debug APK on a connected device
+./gradlew installDebug
 ```
 
-Or run the application directly from Android Studio.
+The generated debug APK is placed under `app/build/outputs/apk/debug/`. Instrumented tests require a connected emulator or device:
 
-### 6. Connect Spotify
+```bash
+./gradlew connectedAndroidTest
+```
 
-Launch RideWave and select:
+Before opening a pull request, run the relevant build and tests and explain any checks that could not run locally.
+
+## How the app works
+
+`MainActivity` owns the Compose screen and Android lifecycle. `SpotifyManager` isolates Spotify installation checks, authorization intent creation, App Remote connection management, playback commands, and disconnect handling. `GestureDetector` translates pointer input into `GestureType` values, while `GestureHandler` maps those values to Spotify actions.
+
+The connection flow is:
 
 ```text
 Connect Spotify
-```
-
-Complete Spotify authorization when prompted.
-
-After authorization succeeds, RideWave will establish an App Remote connection.
-
----
-
-## Current UI
-
-The current interface is intentionally minimal and primarily exists to validate Spotify integration.
-
-After connecting Spotify, the application exposes:
-
-```text
-RideWave
-
-Spotify Connected!
-
-[ Play ]
-
-[ Pause ]
-
-[ Previous ]
-
-[ Next ]
-```
-
-The production RideWave interface will eventually replace these controls with a rider-focused interaction model.
-
----
-
-## Planned Features
-
-RideWave is intended to evolve into a gesture-driven media controller.
-
-Planned capabilities include:
-
-- Gesture-based playback controls
-- Swipe right → Next track
-- Swipe left → Previous track
-- Swipe up/down → Volume control
-- Single tap → Play/Pause
-- Currently playing track information
-- Artist information
-- Album artwork
-- Spotify playlist browsing
-- Spotify playlist selection
-- Landscape/fullscreen rider interface
-- Notification display
-- Digital clock
-- Rider and pillion-friendly controls
-
----
-
-## Intended Gesture Model
-
-```text
-                 Swipe Up
-                Volume Up
-                    ↑
-                    │
-                    │
-
-Swipe Left  ←   RideWave   →  Swipe Right
-Previous                         Next
-
-                    │
-                    │
-                    ↓
-                Swipe Down
-               Volume Down
-
-
-                  Tap
-              Play / Pause
-```
-
-Gesture controls are part of the planned RideWave experience and are not yet fully implemented in the current Spotify integration milestone.
-
----
-
-## Current Development Milestone
-
-### Spotify Connectivity ✅
-
-The current milestone establishes the core Spotify communication layer:
-
-```text
-Spotify installed
-       ↓
-Explicit authorization
-       ↓
-app-remote-control permission
-       ↓
+      ↓
+Spotify Authentication SDK
+      ↓
+Authorization callback
+      ↓
 Spotify App Remote connection
-       ↓
-Playback commands
+      ↓
+Tap / swipe playback controls
 ```
 
-With this foundation working, development can now move toward the actual RideWave rider experience.
+Authorization state is remembered in app preferences so the next activity start can attempt an App Remote connection without asking the user to authorize again. A failed automatic connection falls back to the explicit Connect Spotify action.
 
----
+## Known limitations
 
-## Disclaimer
+- Playback state is tracked locally by `GestureHandler`; it is not synchronized from Spotify's player state.
+- The local Spotify App Remote AAR is required to build the app.
+- The current UI is optimized for landscape use and hides system bars.
+- There is only one application module and no production release/signing configuration.
+- The starter unit and instrumented tests are still minimal; new behavior should be covered as it stabilizes.
 
-RideWave is an independent project and is not affiliated with, endorsed by, or sponsored by Spotify.
+## Contribution notes
 
-Spotify and the Spotify logo are trademarks of Spotify AB.
+Keep Spotify-specific code in the `spotify` package, gesture interpretation in `gestures`, and UI concerns in Compose/activity code. Prefer small, focused changes, preserve the existing landscape/fullscreen behavior unless the feature requires otherwise, and update this README when setup or user-visible behavior changes. See [AGENTS.md](AGENTS.md) for repository working agreements.
+
+## License
+
+No license has been declared yet. Until one is added, assume the code is not licensed for redistribution.

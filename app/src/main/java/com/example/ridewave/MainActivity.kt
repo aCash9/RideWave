@@ -1,7 +1,14 @@
 package com.example.ridewave
 
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
 import android.util.Log
+import com.example.ridewave.R
 
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,26 +16,44 @@ import androidx.activity.enableEdgeToEdge
 
 import androidx.activity.result.contract.ActivityResultContracts
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.Image
 
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+import com.example.ridewave.gestures.GestureDetector
+import com.example.ridewave.gestures.GestureHandler
+import com.example.ridewave.gestures.GestureType
 
 import com.example.ridewave.spotify.SpotifyManager
 import com.example.ridewave.ui.theme.RideWaveTheme
@@ -44,13 +69,27 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var spotifyManager: SpotifyManager
 
+    private lateinit var gestureDetector: GestureDetector
+
+    private lateinit var gestureHandler: GestureHandler
+
     private var isAuthorized by mutableStateOf(false)
 
     private var isConnected by mutableStateOf(false)
 
     private var isConnecting by mutableStateOf(false)
 
+    private var isAuthorizing = false
+
     private var errorMessage by mutableStateOf<String?>(null)
+
+    private var currentTime by mutableStateOf("")
+
+    private var gestureFeedback by mutableStateOf<GestureType?>(null)
+
+    private val spotifyPreferences by lazy {
+        getSharedPreferences("spotify_preferences", Context.MODE_PRIVATE)
+    }
 
     /*
      * Handles the result returned from Spotify's
@@ -82,6 +121,11 @@ class MainActivity : ComponentActivity() {
                     )
 
                     isAuthorized = true
+                    isAuthorizing = false
+
+                    spotifyPreferences.edit()
+                        .putBoolean("spotify_authorized", true)
+                        .apply()
 
                     /*
                      * Authorization worked.
@@ -100,6 +144,7 @@ class MainActivity : ComponentActivity() {
 
                     isAuthorized = false
                     isConnecting = false
+                    isAuthorizing = false
 
                     errorMessage =
                         "Spotify authorization failed: ${response.error}"
@@ -114,6 +159,7 @@ class MainActivity : ComponentActivity() {
 
                     isAuthorized = false
                     isConnecting = false
+                    isAuthorizing = false
 
                     errorMessage =
                         "Spotify authorization was cancelled."
@@ -128,6 +174,7 @@ class MainActivity : ComponentActivity() {
 
                     isAuthorized = false
                     isConnecting = false
+                    isAuthorizing = false
 
                     errorMessage =
                         "Spotify authorization did not complete."
@@ -141,77 +188,155 @@ class MainActivity : ComponentActivity() {
 
         super.onCreate(savedInstanceState)
 
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         enableEdgeToEdge()
 
         spotifyManager =
             SpotifyManager(this)
 
+        gestureDetector = GestureDetector()
+
+        gestureHandler = GestureHandler(spotifyManager) { gesture ->
+            gestureFeedback = gesture
+        }
+
         setContent {
 
             RideWaveTheme {
 
-                Scaffold(
-                    modifier =
-                        Modifier.fillMaxSize()
-                ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFF000000))
+                ) {
+                    LaunchedEffect(Unit) {
+                        while (true) {
+                            currentTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                                .format(java.util.Date())
+                            kotlinx.coroutines.delay(1000)
+                        }
+                    }
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                            .padding(24.dp),
+                    LaunchedEffect(gestureFeedback) {
+                        if (gestureFeedback != null) {
+                            kotlinx.coroutines.delay(1500)
+                            gestureFeedback = null
+                        }
+                    }
 
-                        verticalArrangement =
-                            Arrangement.Center,
-
-                        horizontalAlignment =
-                            Alignment.CenterHorizontally
+                    Box(
+                        modifier = Modifier.fillMaxSize()
                     ) {
-
-                        Text(
-                            text = "RideWave",
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .headlineLarge
-                        )
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(24.dp)
-                        )
-
-                        when {
-
-                            isConnected -> {
-
-                                SpotifyControls()
-                            }
-
-                            else -> {
-
-                                SpotifyLoginButton()
+                        Box(
+                            modifier = Modifier
+                                .padding(24.dp)
+                                .align(Alignment.TopStart)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clickable {
+                                        finish()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "✕",
+                                    color = Color.White.copy(alpha = 0.4f),
+                                    fontSize = 24.sp
+                                )
                             }
                         }
 
-                        errorMessage?.let { error ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 24.dp, vertical = 24.dp),
 
-                            Spacer(
-                                modifier =
-                                    Modifier.height(24.dp)
-                            )
+                            verticalArrangement = Arrangement.Top,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Spacer(modifier = Modifier.height(24.dp))
 
                             Text(
-                                text = error,
-                                color =
-                                    MaterialTheme
-                                        .colorScheme
-                                        .error
+                                text = currentTime,
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 80.sp
                             )
+
+                            Spacer(modifier = Modifier.height(48.dp))
+
+                            when {
+                                isConnected -> {
+                                    SpotifyControls()
+                                }
+                                else -> {
+                                    SpotifyLoginButton()
+                                }
+                            }
+
+                            errorMessage?.let { error ->
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Text(
+                                    text = error,
+                                    color = Color.White.copy(alpha = 0.4f)
+                                )
+                            }
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = gestureFeedback != null,
+                        enter = fadeIn(animationSpec = tween(200)),
+                        exit = fadeOut(animationSpec = tween(200))
+                    ) {
+                        gestureFeedback?.let { gesture ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painter = painterResource(
+                                        id = when (gesture) {
+                                            GestureType.SWIPE_LEFT -> R.drawable.ic_next
+                                            GestureType.SWIPE_RIGHT -> R.drawable.ic_prev
+                                            GestureType.SINGLE_TAP -> R.drawable.ic_play
+                                        }
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        hideSystemUI()
+    }
+
+    private fun hideSystemUI() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.let { controller ->
+                controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            )
         }
     }
 
@@ -220,7 +345,6 @@ class MainActivity : ComponentActivity() {
 
         Button(
             enabled = !isConnecting,
-
             onClick = {
 
                 errorMessage = null
@@ -234,6 +358,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 isConnecting = true
+                isAuthorizing = true
 
                 Log.d(
                     TAG,
@@ -248,7 +373,11 @@ class MainActivity : ComponentActivity() {
                 authLauncher.launch(
                     authIntent
                 )
-            }
+            },
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                containerColor = Color.White.copy(alpha = 0.1f),
+                contentColor = Color.White.copy(alpha = 0.6f)
+            )
         ) {
 
             Text(
@@ -260,6 +389,61 @@ class MainActivity : ComponentActivity() {
                     }
             )
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        val previouslyAuthorized =
+            spotifyPreferences.getBoolean("spotify_authorized", false)
+
+        if (previouslyAuthorized && !isConnected && !isConnecting) {
+            connectSpotifyAutomatically()
+        }
+    }
+
+    private fun connectSpotifyAutomatically() {
+
+        if (!spotifyManager.isSpotifyInstalled()) {
+            errorMessage = "Spotify is not installed"
+            return
+        }
+
+        isConnecting = true
+        errorMessage = null
+
+        Log.d(TAG, "Attempting automatic Spotify connection")
+
+        spotifyManager.connect(
+
+            onConnected = {
+
+                runOnUiThread {
+                    isConnected = true
+                    isConnecting = false
+                    errorMessage = null
+
+                    Log.d(TAG, "Spotify auto-connected successfully")
+                }
+            },
+
+            onError = { throwable ->
+
+                runOnUiThread {
+                    isConnected = false
+                    isConnecting = false
+
+                    Log.w(
+                        TAG,
+                        "Automatic connection failed",
+                        throwable
+                    )
+
+                    errorMessage =
+                        "Automatic connection failed. Tap Connect Spotify."
+                }
+            }
+        )
     }
 
     private fun connectSpotifyRemote() {
@@ -310,64 +494,20 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun SpotifyControls() {
 
-        Text(
-            text = "Spotify Connected!",
-            style =
-                MaterialTheme
-                    .typography
-                    .titleLarge
-        )
-
-        Spacer(
-            modifier =
-                Modifier.height(24.dp)
-        )
-
-        Button(
-            onClick = {
-                spotifyManager.play()
-            }
+        Box(
+            modifier = gestureDetector.createGestureModifier(
+                onSwipeLeft = { gestureHandler.handleGesture(GestureType.SWIPE_LEFT) },
+                onSwipeRight = { gestureHandler.handleGesture(GestureType.SWIPE_RIGHT) },
+                onTap = { gestureHandler.handleGesture(GestureType.SINGLE_TAP) }
+            ).fillMaxSize()
         ) {
-            Text("Play")
         }
+    }
 
-        Spacer(
-            modifier =
-                Modifier.height(8.dp)
-        )
-
-        Button(
-            onClick = {
-                spotifyManager.pause()
-            }
-        ) {
-            Text("Pause")
-        }
-
-        Spacer(
-            modifier =
-                Modifier.height(8.dp)
-        )
-
-        Button(
-            onClick = {
-                spotifyManager.previous()
-            }
-        ) {
-            Text("Previous")
-        }
-
-        Spacer(
-            modifier =
-                Modifier.height(8.dp)
-        )
-
-        Button(
-            onClick = {
-                spotifyManager.next()
-            }
-        ) {
-            Text("Next")
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            hideSystemUI()
         }
     }
 
@@ -375,18 +515,13 @@ class MainActivity : ComponentActivity() {
 
         super.onStop()
 
-        /*
-         * Do NOT disconnect while Spotify's
-         * authorization Activity is being shown.
-         *
-         * We'll handle connection lifecycle more
-         * carefully once basic authorization works.
-         */
+        if (!isAuthorizing) {
+            spotifyManager.disconnect()
+            isConnected = false
+        }
     }
 
     override fun onDestroy() {
-
-        spotifyManager.disconnect()
 
         super.onDestroy()
     }
