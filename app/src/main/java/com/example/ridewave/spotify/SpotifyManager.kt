@@ -337,6 +337,29 @@ class SpotifyManager(
             }
     }
 
+    fun shufflePlay(uri: String, onError: (String) -> Unit) {
+        val remote = spotifyAppRemote
+        if (remote == null) {
+            onError("Spotify is disconnected. Wait for it to reconnect, then try again.")
+            return
+        }
+        remote.playerApi.play(uri)
+            .setResultCallback {
+                if (spotifyAppRemote !== remote) {
+                    onError("Spotify disconnected. Try again after reconnecting.")
+                } else {
+                    remote.playerApi.setShuffle(true).setErrorCallback { error ->
+                        Log.e(TAG, "Shuffle failed after playlist playback started", error)
+                        onError("Playback started, but Spotify could not enable shuffle.")
+                    }
+                }
+            }
+            .setErrorCallback { error ->
+                Log.e(TAG, "Playlist playback failed", error)
+                onError("Spotify could not play this playlist. Check Spotify and try again.")
+            }
+    }
+
     fun disconnect() {
 
         connectionGeneration++

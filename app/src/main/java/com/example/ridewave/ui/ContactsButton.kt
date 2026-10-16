@@ -152,10 +152,7 @@ fun ContactsButton(modifier: Modifier = Modifier) {
             }
         }
     }
-    IconButton(onClick = { open = true }, modifier = modifier.size(72.dp)) {
-        Icon(painterResource(R.drawable.ic_contacts), "Contacts", tint = Color.White,
-            modifier = Modifier.size(30.dp))
-    }
+    RideBubbleButton(painterResource(R.drawable.ic_contacts), "Contacts", { open = true }, modifier)
     if (open) ContactsOverlay(contacts, busy, onDismiss = ::dismiss, onAdd = {
         if (!busy && !pickerOpen) {
             try {

@@ -20,7 +20,17 @@ The project is actively evolving. The working feature set is intentionally small
 
 Ride mode displays the live song title, artist, and playback status at the bottom center. A large, full-opacity white clock sits in the header; centered playback icons provide two-second gesture feedback.
 
-The project does not yet provide playlist browsing, configurable gestures, background playback, or a dedicated settings screen.
+The project does not yet provide configurable gestures, background playback, or a dedicated settings screen.
+
+## Ride playlists
+
+Tap the bottom-left Playlists button to choose up to four playlist bubbles. The picker loads all pages of your playlist library. Selected rows have a highlighted background and border, with spacing between items. Press **Done** with zero to four selections. Tap a bubble to start playback through Spotify App Remote, then enable shuffle in the new playback context. If Spotify rejects shuffle, playback continues with a visible warning. **Edit** reopens the full list with your selections highlighted; deselect and replace playlists, then press **Done**. Close or Back discards unfinished edits. The overlay closes after five seconds without interaction; touching, scrolling, or activating a control restarts the timer, while loading and backgrounding pause it. Saved choices and setup completion persist between launches.
+
+Playlist bubbles load cover art from the image URLs returned by Spotify, with a name fallback when artwork is missing or unavailable. Names remain below the bubbles. Artwork is loaded off the main thread with bounded downloads and timeouts. Opening the overlay refreshes playlist metadata, including temporary image URLs. Portrait uses a scrollable two-column layout; landscape places the bubbles in a row.
+
+Web API authorization uses PKCE and the playlist scopes in the configuration template; playback uses App Remote. No redirect URI, manifest, or dashboard changes are required for this flow. Spotify must be installed, authorized, and connected for playback. Loading and playback failures appear in the playlist overlay.
+
+Manual verification: authorize a new account, browse a library larger than 50 playlists, save zero, two, and four selections, and restart after each. Confirm playback followed by shuffle for each playlist bubble. Edit and replace a selection; close an unfinished edit and confirm saved choices remain. Check four bubbles in portrait/landscape, artwork and missing-image fallback, a disconnected device, and an account with fewer than four playlists.
 
 ## Device notifications
 
@@ -105,7 +115,7 @@ The Spotify App Remote integration is device-oriented. Testing on a physical dev
    ```
 
 4. Configure the redirect URI `ridewave://callback`.
-5. Copy `app/src/main/java/com/example/ridewave/spotify/SpotifyConfig.kt.example` to `app/src/main/java/com/example/ridewave/spotify/SpotifyConfig.kt` and set the client ID for local development. The copied file is ignored by Git.
+5. Copy `app/src/main/java/com/example/ridewave/spotify/SpotifyConfig.kt.example` to `app/src/main/java/com/example/ridewave/spotify/SpotifyConfig.kt` and set the client ID for local development. The copied file is ignored by Git. The template includes the initial Web API scopes used by `SpotifyWebApi`.
 6. If the Spotify application is in Development Mode, add the Spotify account used for testing to the application's allowed users.
 
 The redirect URI must match in all three places: Spotify Developer Dashboard, `SpotifyConfig.kt`, and the manifest intent filter. The package name and SHA-1 must match the installed build's signing identity.
@@ -158,7 +168,7 @@ Spotify App Remote connection
 Tap / swipe playback controls
 ```
 
-Onboarding completion and authorization state are remembered in app preferences. After setup, subsequent launches open ride mode and reconnect in the background. Connection failures open the connection page with a retry action. Successful connection opens ride mode automatically. The close icon exits the app; Android Back returns to the preceding page.
+Onboarding completion and authorization state are remembered in app preferences. After setup, subsequent launches open ride mode and reconnect in the background. Connection failures open the connection page with a retry action. Successful connection opens ride mode automatically. The close icon and Android Back exit the app; completed onboarding and connection pages are not placed in a back stack.
 
 Orientation and screen-size changes are handled by the activity so rotation preserves the Spotify connection and current page. Backgrounding the app disconnects App Remote; returning to ride mode reconnects in the background.
 

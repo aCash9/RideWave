@@ -9,6 +9,8 @@ object SpotifyConfig {
     const val REDIRECT_URI = "ridewave://callback"
 
     val SCOPES = arrayOf(
-        "app-remote-control"
+        "app-remote-control",
+        "playlist-read-private",
+        "playlist-read-collaborative"
     )
 }

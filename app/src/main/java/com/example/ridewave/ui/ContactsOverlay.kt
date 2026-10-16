@@ -4,7 +4,6 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,7 +25,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -201,24 +199,24 @@ private fun ContactBubble(
             }
         } catch (_: Exception) { null }
     }
-    Surface(onClick = onClick, enabled = !disabled, interactionSource = interactionSource,
-        shape = CircleShape, color = Color.Black,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = if (contact == null) 0.5f else 0.32f)),
-        modifier = Modifier.size(diameter).graphicsLayer {
-            alpha = entrance.value.coerceIn(0f, 1f)
-        }.semantics {
-            contentDescription = when {
-                contact == null -> "Add contact"
-                editing -> "Remove ${contact.name}"
-                else -> "Call ${contact.name}, ${contact.number}"
-            }
-        }) {
+    RideBubbleSurface(
+        diameter = diameter,
+        contentDescription = when {
+            contact == null -> "Add contact"
+            editing -> "Remove ${contact.name}"
+            else -> "Call ${contact.name}, ${contact.number}"
+        },
+        onClick = onClick,
+        enabled = !disabled,
+        borderAlpha = if (contact == null) 0.5f else 0.32f,
+        modifier = Modifier.graphicsLayer { alpha = entrance.value.coerceIn(0f, 1f) }
+    ) {
         Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
             if (photo != null && !editing) {
                 Image(photo, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
             }
-            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            Column(horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (contact == null) {
                     Icon(painterResource(R.drawable.ic_contact_add), null, tint = ContactWhite,

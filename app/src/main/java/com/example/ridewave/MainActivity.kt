@@ -1,6 +1,7 @@
 package com.example.ridewave
 
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -20,9 +21,12 @@ import com.example.ridewave.gestures.GestureDetector
 import com.example.ridewave.gestures.GestureHandler
 import com.example.ridewave.gestures.GestureType
 import com.example.ridewave.spotify.SpotifyManager
+import com.example.ridewave.spotify.SpotifyWebApi
 import com.example.ridewave.ui.theme.RideWaveTheme
 import com.spotify.sdk.android.auth.AuthorizationClient
 import com.spotify.sdk.android.auth.AuthorizationResponse
+import org.json.JSONArray
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
 
@@ -31,6 +35,36 @@ class MainActivity : ComponentActivity() {
     }
 
     private lateinit var spotifyManager: SpotifyManager
+    private lateinit var spotifyWebApi: SpotifyWebApi
+    private var playlists by mutableStateOf(emptyList<SpotifyWebApi.Playlist>())
+    private var playlistsLoading by mutableStateOf(false)
+    private var playlistsAuthorized by mutableStateOf(false)
+    private var selectedPlaylistIds by mutableStateOf(emptySet<String>())
+    private var playlistSetupComplete by mutableStateOf(false)
+    private var playlistError by mutableStateOf<String?>(null)
+
+    private fun loadPlaylists(code: String? = null) {
+        if (playlistsLoading) return
+        playlistsLoading = true
+        playlistError = null
+        Thread {
+            try {
+                if (code != null) spotifyWebApi.exchangeAuthorizationCode(code)
+                val result = spotifyWebApi.getPlaylists().distinctBy { it.id }
+                runOnUiThread {
+                    playlists = result
+                    playlistsAuthorized = true
+                    playlistsLoading = false
+                }
+            } catch (_: Exception) {
+                runOnUiThread {
+                    playlistsAuthorized = spotifyWebApi.getStoredToken() != null
+                    playlistsLoading = false
+                    playlistError = "Could not load Spotify playlists. Check your connection and retry."
+                }
+            }
+        }.start()
+    }
 
     private lateinit var gestureDetector: GestureDetector
 
@@ -58,6 +92,13 @@ class MainActivity : ComponentActivity() {
 
     private val spotifyPreferences by lazy {
         getSharedPreferences("spotify_preferences", Context.MODE_PRIVATE)
+    }
+
+    private fun handleWebCallback(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme != "ridewave" || uri.host != "callback") return
+        val code = uri.getQueryParameter("code") ?: return
+        loadPlaylists(code)
     }
 
     /*
@@ -152,6 +193,19 @@ class MainActivity : ComponentActivity() {
     ) {
 
         super.onCreate(savedInstanceState)
+        spotifyWebApi = SpotifyWebApi(this)
+        playlistsAuthorized = spotifyWebApi.getStoredToken() != null
+        selectedPlaylistIds = spotifyPreferences.getStringSet("selected_playlist_ids", emptySet()).orEmpty()
+        playlistSetupComplete = spotifyPreferences.getBoolean("playlist_setup_complete", selectedPlaylistIds.isNotEmpty())
+        playlists = runCatching {
+            val saved = JSONArray(spotifyPreferences.getString("selected_playlists", "[]"))
+            List(saved.length()) { index ->
+                val item = saved.getJSONObject(index)
+                SpotifyWebApi.Playlist(item.getString("id"), item.getString("name"), item.getString("uri"),
+                    item.optString("imageUrl").takeIf { it.startsWith("https://") })
+            }
+        }.getOrDefault(emptyList())
+        handleWebCallback(intent)
 
         val authorized = spotifyPreferences.getBoolean("spotify_authorized", false)
         page = if (spotifyPreferences.getBoolean("onboarding_seen", authorized)) {
@@ -198,10 +252,9 @@ class MainActivity : ComponentActivity() {
                         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     }
                 }
-                androidx.activity.compose.BackHandler(page != com.example.ridewave.ui.RidePage.LANDING) {
-                    page = if (page == com.example.ridewave.ui.RidePage.RIDE)
-                        com.example.ridewave.ui.RidePage.CONNECT else com.example.ridewave.ui.RidePage.LANDING
-                }
+                // These screens are onboarding states, not a navigable back stack. Once the
+                // user advances, Back should leave RideWave instead of reopening completed setup.
+                androidx.activity.compose.BackHandler { finish() }
                 com.example.ridewave.ui.RideWaveScreen(
                     page = page,
                     time = currentTime,
@@ -230,7 +283,38 @@ class MainActivity : ComponentActivity() {
                     feedbackSequence = feedbackSequence,
                     trackTitle = trackTitle,
                     trackArtist = trackArtist,
-                    playing = playing
+                    playing = playing,
+                    playlists = playlists, playlistsLoading = playlistsLoading,
+                    selectedPlaylistIds = selectedPlaylistIds,
+                    playlistSetupComplete = playlistSetupComplete,
+                    playlistsAuthorized = playlistsAuthorized,
+                    playlistError = playlistError,
+                    onAuthorizePlaylists = {
+                        startActivity(Intent(Intent.ACTION_VIEW, spotifyWebApi.createAuthorizationRequest().authorizationUri))
+                    },
+                    onLoadPlaylists = { loadPlaylists() },
+                    onSavePlaylists = { ids ->
+                        val chosen = playlists.filter { it.id in ids }
+                        if (ids.size <= 4 && chosen.size == ids.size) {
+                            val saved = JSONArray()
+                            chosen.forEach {
+                                saved.put(JSONObject().put("id", it.id).put("name", it.name).put("uri", it.uri)
+                                    .put("imageUrl", it.imageUrl))
+                            }
+                            selectedPlaylistIds = ids.toSet()
+                            playlistSetupComplete = true
+                            spotifyPreferences.edit()
+                                .putStringSet("selected_playlist_ids", ids)
+                                .putBoolean("playlist_setup_complete", true)
+                                .putString("selected_playlists", saved.toString()).apply()
+                        }
+                    },
+                    onSelectPlaylist = {
+                        playlistError = null
+                        spotifyManager.shufflePlay(it.uri) { message ->
+                            runOnUiThread { playlistError = message }
+                        }
+                    }
                 )
             }
         }
@@ -239,6 +323,12 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         hideSystemUI()
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleWebCallback(intent)
     }
 
     private fun hideSystemUI() {

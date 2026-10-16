@@ -30,6 +30,7 @@ import com.example.ridewave.R
 import com.example.ridewave.gestures.GestureDetector
 import com.example.ridewave.gestures.GestureType
 import com.example.ridewave.ui.theme.RideWaveTheme
+import com.example.ridewave.spotify.SpotifyWebApi
 
 enum class RidePage { LANDING, CONNECT, RIDE }
 
@@ -52,7 +53,14 @@ fun RideWaveScreen(
     feedbackSequence: Int = 0,
     trackTitle: String? = null,
     trackArtist: String = "",
-    playing: Boolean = false
+    playing: Boolean = false,
+    playlists: List<SpotifyWebApi.Playlist> = emptyList(), playlistsLoading: Boolean = false,
+    selectedPlaylistIds: Set<String> = emptySet(),
+    playlistSetupComplete: Boolean = selectedPlaylistIds.isNotEmpty(),
+    playlistsAuthorized: Boolean = false, onAuthorizePlaylists: () -> Unit = {}, onLoadPlaylists: () -> Unit = {},
+    playlistError: String? = null,
+    onSavePlaylists: (Set<String>) -> Unit = {},
+    onSelectPlaylist: (SpotifyWebApi.Playlist) -> Unit = {}
 ) {
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -77,7 +85,7 @@ fun RideWaveScreen(
                 val landscape = maxWidth > maxHeight
                 val clockSize = if (landscape) 80.sp else if (maxWidth >= 380.dp) 64.sp else 52.sp
                 Text(time, color = Color.White, fontSize = clockSize, fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.SansSerif, letterSpacing = (-1).sp,
+                    fontFamily = FontFamily.Monospace, letterSpacing = 5.sp,
                     maxLines = 1, modifier = Modifier.align(Alignment.TopCenter)
                         .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical))
                         .padding(horizontal = 88.dp, vertical = 8.dp))
@@ -163,6 +171,10 @@ fun RideWaveScreen(
             }
         }
         if (page == RidePage.RIDE) {
+            PlaylistButton(playlists, playlistsLoading, playlistsAuthorized, selectedPlaylistIds, onAuthorizePlaylists,
+                onLoadPlaylists, onSavePlaylists, onSelectPlaylist,
+                Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing).padding(8.dp),
+                error = playlistError, setupComplete = playlistSetupComplete)
             ContactsButton(Modifier.align(Alignment.BottomEnd)
                 .windowInsetsPadding(WindowInsets.safeDrawing).padding(8.dp))
         }
