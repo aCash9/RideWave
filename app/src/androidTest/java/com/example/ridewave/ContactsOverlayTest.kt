@@ -1,5 +1,7 @@
 package com.example.ridewave
 
+import android.graphics.Bitmap
+import android.util.Base64
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.*
@@ -17,6 +19,7 @@ import com.example.ridewave.gestures.GestureDetector
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import java.io.ByteArrayOutputStream
 
 class ContactsOverlayTest {
     @get:Rule val compose = createComposeRule()
@@ -54,6 +57,22 @@ class ContactsOverlayTest {
             assertEquals(contacts.first(), called)
             assertEquals(contacts.last(), removed)
         }
+    }
+
+    @Test fun photographedContactShowsOnlyTheEdgeToEdgeImage() {
+        val photo = ByteArrayOutputStream().use { output ->
+            Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888).run {
+                eraseColor(android.graphics.Color.BLUE)
+                compress(Bitmap.CompressFormat.JPEG, 90, output)
+                recycle()
+            }
+            Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
+        }
+        val contact = RideContact("Photo Contact", "5550100", photo)
+        compose.setContent { ContactsOverlay(listOf(contact), false, {}, {}, {}, {}) }
+
+        compose.onNodeWithContentDescription("Call Photo Contact, 5550100").assertIsDisplayed()
+        compose.onNodeWithText("Photo Contact").assertDoesNotExist()
     }
 
     @Test fun idleOverlayClosesAfterTenSeconds() {

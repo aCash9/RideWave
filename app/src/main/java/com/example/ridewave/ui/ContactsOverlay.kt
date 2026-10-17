@@ -191,7 +191,6 @@ private fun ContactBubble(
         delay(index * 35L)
         entrance.animateTo(1f, tween(120))
     }
-    val interactionSource = remember { MutableInteractionSource() }
     val photo = remember(contact?.photo) {
         try {
             contact?.photo?.let { Base64.decode(it, Base64.NO_WRAP) }?.let {
@@ -209,27 +208,33 @@ private fun ContactBubble(
         onClick = onClick,
         enabled = !disabled,
         borderAlpha = if (contact == null) 0.5f else 0.32f,
+        contentPadding = if (photo != null) 0.dp else 16.dp,
         modifier = Modifier.graphicsLayer { alpha = entrance.value.coerceIn(0f, 1f) }
     ) {
         Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-            if (photo != null && !editing) {
-                Image(photo, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
-                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (contact == null) {
-                    Icon(painterResource(R.drawable.ic_contact_add), null, tint = ContactWhite,
-                        modifier = Modifier.size((diameter * 0.25f).coerceIn(28.dp, 56.dp)))
-                    Text("Add contact", color = ContactSecondary, fontSize = 14.sp,
-                        textAlign = TextAlign.Center, maxLines = 2)
-                } else {
-                    Text(contact.name, color = ContactWhite, textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.SemiBold, fontSize = if (diameter >= 160.dp) 24.sp else 20.sp,
-                        lineHeight = 28.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false))
-                    Icon(painterResource(if (editing) R.drawable.ic_contact_remove else R.drawable.ic_contact_call),
-                        null, tint = if (editing) Color.White else ContactSecondary, modifier = Modifier.size(24.dp))
+            if (photo != null) {
+                Image(
+                    bitmap = photo,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().clip(CircleShape)
+                )
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (contact == null) {
+                        Icon(painterResource(R.drawable.ic_contact_add), null, tint = ContactWhite,
+                            modifier = Modifier.size((diameter * 0.25f).coerceIn(28.dp, 56.dp)))
+                        Text("Add contact", color = ContactSecondary, fontSize = 14.sp,
+                            textAlign = TextAlign.Center, maxLines = 2)
+                    } else {
+                        Text(contact.name, color = ContactWhite, textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.SemiBold, fontSize = if (diameter >= 160.dp) 24.sp else 20.sp,
+                            lineHeight = 28.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false))
+                        Icon(painterResource(if (editing) R.drawable.ic_contact_remove else R.drawable.ic_contact_call),
+                            null, tint = if (editing) Color.White else ContactSecondary, modifier = Modifier.size(24.dp))
+                    }
                 }
             }
         }

@@ -88,7 +88,8 @@ fun RideWaveScreen(
                     fontFamily = FontFamily.Monospace, letterSpacing = 5.sp,
                     maxLines = 1, modifier = Modifier.align(Alignment.TopCenter)
                         .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical))
-                        .padding(horizontal = 88.dp, vertical = 8.dp))
+                        .padding(horizontal = 88.dp, vertical = 8.dp)
+                        .offset(y = if (landscape) 0.dp else 56.dp))
                 if (feedback != null) {
                     androidx.compose.runtime.key(feedbackSequence) {
                         val icon = when (feedback) {
@@ -100,7 +101,7 @@ fun RideWaveScreen(
                         }
                         if (icon != null) {
                             Icon(painterResource(icon), contentDescription = feedback,
-                                tint = Color.White, modifier = Modifier.size(if (landscape) 80.dp else 112.dp)
+                                tint = Color.White, modifier = Modifier.size(if (landscape) 80.dp else 136.dp)
                                     .semantics { liveRegion = LiveRegionMode.Polite })
                         } else {
                             Text(feedback, color = Color.White, textAlign = TextAlign.Center,
@@ -112,7 +113,7 @@ fun RideWaveScreen(
                     Modifier.align(Alignment.BottomCenter)
                         .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical))
                         .padding(start = 88.dp, end = 88.dp, top = if (landscape) 12.dp else 36.dp,
-                            bottom = if (landscape) 12.dp else 36.dp)
+                            bottom = if (landscape) 12.dp else 88.dp)
                         .widthIn(max = 600.dp).fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -179,13 +180,17 @@ fun RideWaveScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing).padding(8.dp))
         }
         NotificationButton(Modifier.align(Alignment.TopEnd)
-            .windowInsetsPadding(WindowInsets.safeDrawing).padding(8.dp))
+            .then(if (landscape) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
+            .padding(8.dp))
         IconButton(onClick = onClose,
             modifier = Modifier.align(Alignment.TopStart)
-                .windowInsetsPadding(WindowInsets.safeDrawing).padding(8.dp).size(72.dp)
+                .then(if (landscape) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier)
+                .padding(8.dp)
+                .size(if (landscape) 72.dp else 80.dp)
                 .offset(x = if (landscape) (-40).dp else 0.dp)
                 .semantics { contentDescription = "Close RideWave" }) {
-            Text("×", color = Color.White, fontSize = 44.sp, textAlign = TextAlign.Center)
+            Text("×", color = Color.White, fontSize = if (landscape) 44.sp else 52.sp,
+                textAlign = TextAlign.Center)
         }
     }
 }

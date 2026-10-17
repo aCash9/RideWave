@@ -1,11 +1,17 @@
 package com.example.ridewave
 
 import android.content.ContextWrapper
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.ridewave.contacts.RideContact
 import com.example.ridewave.contacts.RideContacts
+import com.example.ridewave.contacts.resizeContactPhoto
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayOutputStream
 import java.io.File
 
 class RideContactsTest {
@@ -24,5 +30,23 @@ class RideContactsTest {
             store.save(emptyList())
             assertEquals(emptyList<RideContact>(), store.load())
         } finally { directory.deleteRecursively() }
+    }
+
+    @Test fun contactPhotosAreNormalizedAndBoundedForBubbleStorage() {
+        val source = ByteArrayOutputStream().use { output ->
+            Bitmap.createBitmap(1400, 900, Bitmap.Config.ARGB_8888).run {
+                eraseColor(android.graphics.Color.BLUE)
+                compress(Bitmap.CompressFormat.PNG, 100, output)
+                recycle()
+            }
+            output.toByteArray()
+        }
+
+        val normalized = resizeContactPhoto(source)
+        val bitmap = BitmapFactory.decodeByteArray(normalized, 0, normalized!!.size)
+        assertTrue(maxOf(bitmap.width, bitmap.height) <= 512)
+        assertTrue(normalized.isNotEmpty())
+        bitmap.recycle()
+        assertNull(resizeContactPhoto(byteArrayOf(1, 2, 3)))
     }
 }

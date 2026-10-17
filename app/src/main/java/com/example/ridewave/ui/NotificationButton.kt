@@ -37,6 +37,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun NotificationButton(modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val portrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var open by remember { mutableStateOf(false) }
     var access by remember { mutableStateOf(false) }
@@ -57,9 +58,9 @@ fun NotificationButton(modifier: Modifier = Modifier) {
         onDispose { lifecycle.removeObserver(observer) }
     }
     Box(modifier) {
-        IconButton(onClick = { open = !open }, modifier = Modifier.size(72.dp)) {
+        IconButton(onClick = { open = !open }, modifier = Modifier.size(if (portrait) 80.dp else 72.dp)) {
             Icon(painterResource(R.drawable.ic_notifications), "Notifications", tint = Color.White,
-                modifier = Modifier.size(30.dp))
+                modifier = Modifier.size(if (portrait) 38.dp else 30.dp))
         }
         if (open) {
             NotificationPopup(access, snapshot.connected, snapshot.items, onDismiss = { open = false }) {

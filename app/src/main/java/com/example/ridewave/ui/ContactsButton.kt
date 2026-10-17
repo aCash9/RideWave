@@ -43,6 +43,8 @@ fun ContactsButton(modifier: Modifier = Modifier) {
     var open by rememberSaveable { mutableStateOf(false) }
     var busy by remember { mutableStateOf(true) }
     var pickerOpen by rememberSaveable { mutableStateOf(false) }
+    var contactPermissionPending by rememberSaveable { mutableStateOf(false) }
+    var launchPickerWhenPermitted by rememberSaveable { mutableStateOf(false) }
     var permissionPending by rememberSaveable { mutableStateOf(false) }
     var permissionHelp by rememberSaveable { mutableStateOf(false) }
     var permissionNeedsSettings by rememberSaveable { mutableStateOf(false) }
@@ -51,6 +53,8 @@ fun ContactsButton(modifier: Modifier = Modifier) {
     val activity = remember(context) { context.findActivity() }
     fun message(text: String) = Toast.makeText(context, text, Toast.LENGTH_LONG).show()
     fun canCall() = ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE) ==
+        PackageManager.PERMISSION_GRANTED
+    fun canReadContacts() = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) ==
         PackageManager.PERMISSION_GRANTED
     fun dismiss() {
         open = false
@@ -92,6 +96,14 @@ fun ContactsButton(modifier: Modifier = Modifier) {
         permissionHelp = false
         permissionPending = true
         permission.launch(Manifest.permission.CALL_PHONE)
+    }
+    val contactPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        contactPermissionPending = false
+        if (granted && open) {
+            launchPickerWhenPermitted = true
+        } else if (open) {
+            message("Contacts permission is needed to show contact photos in ride bubbles.")
+        }
     }
     val settings = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         settingsOpen = false
@@ -152,9 +164,9 @@ fun ContactsButton(modifier: Modifier = Modifier) {
             }
         }
     }
-    RideBubbleButton(painterResource(R.drawable.ic_contacts), "Contacts", { open = true }, modifier)
-    if (open) ContactsOverlay(contacts, busy, onDismiss = ::dismiss, onAdd = {
-        if (!busy && !pickerOpen) {
+    LaunchedEffect(launchPickerWhenPermitted) {
+        if (launchPickerWhenPermitted) {
+            launchPickerWhenPermitted = false
             try {
                 pickerOpen = true
                 picker.launch(Intent(Intent.ACTION_PICK).apply { type = Phone.CONTENT_TYPE })
@@ -164,6 +176,17 @@ fun ContactsButton(modifier: Modifier = Modifier) {
             } catch (_: SecurityException) {
                 pickerOpen = false
                 message("Contact access is unavailable on this device.")
+            }
+        }
+    }
+    RideBubbleButton(painterResource(R.drawable.ic_contacts), "Contacts", { open = true }, modifier)
+    if (open) ContactsOverlay(contacts, busy, onDismiss = ::dismiss, onAdd = {
+        if (!busy && !pickerOpen && !contactPermissionPending) {
+            if (canReadContacts()) {
+                launchPickerWhenPermitted = true
+            } else {
+                contactPermissionPending = true
+                contactPermission.launch(Manifest.permission.READ_CONTACTS)
             }
         }
     }, onCall = { contact ->
@@ -186,7 +209,8 @@ fun ContactsButton(modifier: Modifier = Modifier) {
             }
         }
     }, onRemove = { contact -> save(contacts - contact) },
-        timerPaused = busy || pickerOpen || permissionPending || permissionHelp || settingsOpen)
+        timerPaused = busy || pickerOpen || contactPermissionPending || permissionPending ||
+            permissionHelp || settingsOpen)
 
     if (open && permissionHelp) AlertDialog(
         onDismissRequest = {
